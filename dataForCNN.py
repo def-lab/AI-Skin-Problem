@@ -18,10 +18,9 @@ def load_dataset(dataframe,batch_size,is_training=True,augment=False):
             image = tf.image.random_saturation(image,0.8,1.2)
         image = tf.cast(image,tf.float32)/255.0
         return image,label
-    dataset = dataset.map(parse,num_parallel_calls=tf.data.AUTOTUNE)
+    dataset = dataset.map(parse,num_parallel_calls=1)
     if is_training:
-        dataset = dataset.shuffle(buffer_size=len(dataframe))
-        dataset = dataset.repeat()
+        dataset = dataset.shuffle(buffer_size=min(1000,len(dataframe)))
     dataset = dataset.batch(batch_size)
-    dataset = dataset.prefetch(tf.data.AUTOTUNE)
+    dataset = dataset.prefetch(1)
     return dataset
