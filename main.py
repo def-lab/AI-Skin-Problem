@@ -3,34 +3,36 @@ from livelossplot import PlotLossesKeras
 from NeuralNetwork import *
 from dataForCNN import load_dataset
 import tensorboard
+from tensorflow.keras.callbacks import EarlyStopping,  ReduceLROnPlateau
 from importData import *
 import keras
 import tensorflow as tf
 
 class GPU_cleaner(keras.callbacks.Callback):
 	def on_epoch_end(self,epoch,logs = None):
-		tf.keras.backend.clear_session()
+		import gc
+		gc.collect()
 CNN = createCNN()
 
 train_df,val_df = formdata()
 train_ds= load_dataset(
     train_df,
-    batch_size=8,
+    batch_size=32,
     is_training=True,
-    augment=True
+    augment=False
 )
 val_ds= load_dataset(
     val_df,
-    batch_size=8,
+    batch_size=32,
     is_training=False,
     augment=False
 )
 val_ds = val_ds.prefetch(buffer_size=tf.data.AUTOTUNE)
-
-initial_learning_rate = 0.005
-lr_schedule = keras.optimizers.schedules.ExponentialDecay(
+train_ds = train_ds.repeat().prefetch(buffer_size=tf.data.AUTOTUNE)
+initial_learning_rate = 0.0005
+lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
     initial_learning_rate,
-    decay_steps = (len(train_df)//16)*10,
+    decay_steps = (len(train_df)//32)*10,
     decay_rate=0.95,
     staircase=True
 )
@@ -49,18 +51,19 @@ CNN.compile(
     metrics=['sparse_categorical_accuracy', 'sparse_top_k_categorical_accuracy']
 )
 callbacks = [
-    keras.callbacks.EarlyStopping(
-        monitor='val_sparse_categorical_accuracy',
-        patience=15,
-        restore_best_weights=True,
-        mode='max'
-    ),
-    keras.callbacks.ReduceLROnPlateau(
-        monitor='val_loss',
-        factor=0.5,
-        patience=5,
-        min_lr=1e-7
-    ),
+#    keras.callbacks.ReduceLROnPlateau(
+#        monitor='val_loss',
+#        factor=0.5,
+#        patience=5,
+#        min_lr=1e-7,
+#        verbose=1
+#    ),
+    EarlyStopping(
+	monitor = 'val_loss',
+	patience=10,
+	restore_best_weights=True,
+	verbose=1
+),
     keras.callbacks.ModelCheckpoint(
         './models/best_model.weights.h5',
         monitor='val_sparse_categorical_accuracy',
@@ -73,14 +76,13 @@ callbacks = [
 
 history = CNN.fit(
     train_ds,
-    steps_per_epoch=len(train_df)//8,
+    steps_per_epoch=len(train_df)//32,
     epochs=50,
     callbacks=callbacks,
     validation_data=val_ds,
-    validation_steps=len(val_df)//8,
+    validation_steps=len(val_df)//32,
     verbose=1
 )
-
 
 # Посмотреть метрики
 print("\nФинальные метрики:")
