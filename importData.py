@@ -24,7 +24,7 @@ def formdata():
     train_df, val_df = train_test_split(
         metadata,
         test_size=0.3,
-        random_state=42,
+        random_state=87,
         stratify=metadata['label']
     )
 

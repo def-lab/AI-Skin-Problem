@@ -7,19 +7,19 @@ from tensorflow.keras.callbacks import EarlyStopping,  ReduceLROnPlateau
 from importData import *
 import keras
 import tensorflow as tf
-
+from tlearn import create_tl 
 class GPU_cleaner(keras.callbacks.Callback):
 	def on_epoch_end(self,epoch,logs = None):
 		import gc
 		gc.collect()
-CNN = createCNN()
+CNN = create_tl()
 
 train_df,val_df = formdata()
 train_ds= load_dataset(
     train_df,
     batch_size=32,
     is_training=True,
-    augment=False
+    augment=True
 )
 val_ds= load_dataset(
     val_df,
@@ -29,7 +29,7 @@ val_ds= load_dataset(
 )
 val_ds = val_ds.prefetch(buffer_size=tf.data.AUTOTUNE)
 train_ds = train_ds.repeat().prefetch(buffer_size=tf.data.AUTOTUNE)
-initial_learning_rate = 0.0005
+initial_learning_rate = 0.0004
 lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
     initial_learning_rate,
     decay_steps = (len(train_df)//32)*10,
@@ -51,13 +51,13 @@ CNN.compile(
     metrics=['sparse_categorical_accuracy', 'sparse_top_k_categorical_accuracy']
 )
 callbacks = [
-#    keras.callbacks.ReduceLROnPlateau(
-#        monitor='val_loss',
-#        factor=0.5,
-#        patience=5,
-#        min_lr=1e-7,
-#        verbose=1
-#    ),
+    keras.callbacks.ReduceLROnPlateau(
+        monitor='val_loss',
+        factor=0.5,
+        patience=5,
+        min_lr=1e-7,
+        verbose=1
+    ),
     EarlyStopping(
 	monitor = 'val_loss',
 	patience=10,
@@ -84,7 +84,6 @@ history = CNN.fit(
     verbose=1
 )
 
-# Посмотреть метрики
 print("\nФинальные метрики:")
 print(f"Train Accuracy: {history.history['sparse_categorical_accuracy'][-1]:.4f}")
 print(f"Val Accuracy: {history.history['val_sparse_categorical_accuracy'][-1]:.4f}")
